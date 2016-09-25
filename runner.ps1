@@ -1,9 +1,20 @@
-$path = @{'Record' = "C:\Users\Wouter\Music\Replay Music Recordings"; 'Destination' = 'E:\testtarget'}
+Param(
+  [Parameter(Mandatory=$True,Position=1)][string]$recordPath,
+  [Parameter(Position=2)][string]$targetPath
+)
+
+if (!$targetPath) {
+    $targetPath = Join-Path $recordPath "target"
+   New-Item $targetPath -ItemType directory
+}
+
+$path = @{'Record' = $recordPath; 'Destination' = $targetPath}
 
 $queue = New-Object 'System.Collections.Generic.Queue[string]'
 $renames = New-Object 'System.Collections.Generic.List[string]'
 
 $previousSong = ""
+
 
 function MaintainQueue() {
     $currentSongDetected = (Get-Process -Name "spotify" -ErrorAction SilentlyContinue | where {$_.MainWindowTitle.Length -gt 7}).MainWindowTitle
@@ -17,14 +28,11 @@ function MaintainQueue() {
 }
 
 function GetNewestRecordedFilePath() {
-    $newestFile = (Get-ChildItem -Filter "*.mp3" $path.Record   | Sort-Object -Property CreationTime -Descending | Select-Object -first 1).FullName
+    $newestFile = (Get-ChildItem -Filter "*.mp3" $path.Record | Sort-Object -Property CreationTime -Descending | Select-Object -first 1).FullName
     return $newestFile
 }
 
 function MoveFile ($source, $dest){
-    #if (Test-Path $dest) {
-    #    Move-Item $dest "$dest.old"
-    #}
     Move-Item $source $dest -ErrorAction SilentlyContinue
     return $?
 }
