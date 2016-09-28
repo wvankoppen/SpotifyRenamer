@@ -1,11 +1,19 @@
 Param(
-  [Parameter(Mandatory=$True,Position=1)][string]$recordPath,
+  [Parameter(Mandatory=$False,Position=1)][string]$recordPath,
   [Parameter(Position=2)][string]$targetPath
 )
 
+$error.Clear()
+
+if (!$recordPath){
+    $recordPath = "C:\Users\Wouter\Music\Replay Music Recordings"
+}
+
 if (!$targetPath) {
     $targetPath = Join-Path $recordPath "target"
-   New-Item $targetPath -ItemType directory
+    if (!(Test-Path $targetPath)){
+        New-Item $targetPath -ItemType directory
+    }
 }
 
 $path = @{'Record' = $recordPath; 'Destination' = $targetPath}
@@ -33,8 +41,15 @@ function GetNewestRecordedFilePath() {
 }
 
 function MoveFile ($source, $dest){
-    Move-Item $source $dest -ErrorAction SilentlyContinue
-    return $?
+    if (Test-Path $dest){
+        Remove-Item $dest -Force
+    }
+
+    Move-Item $source $dest -ErrorVariable $moveError
+    if ($? -eq $True){
+        return $True
+    }
+    return $False
 }
 
 function UpdateScreen() {
@@ -46,6 +61,10 @@ function UpdateScreen() {
     echo "Renames:"
     echo $global:renames | Format-List
 
+    echo ""
+    echo "Errors:"
+    echo $error | Format-List
+
     sleep 1
 }
 
@@ -53,7 +72,12 @@ while($true){
     MaintainQueue
 
     $newestRecordedFilePath = GetNewestRecordedFilePath
-    $newestInQueue = $global:queue.Peek()   
+    if ($global:queue.Count -gt 0){
+        $newestInQueue = $global:queue.Peek()   
+    }
+    else {
+        $newestInQueue = $null
+    }
 
     if ($newestRecordedFilePath -and $newestInQueue){
         $targetPath = Join-Path $global:path.Destination ($newestInQueue + ".mp3")
